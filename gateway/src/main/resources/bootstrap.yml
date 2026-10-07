@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    nacos:
+      server-addr: ${NACOS_ADDR:nacos:8848}
+      discovery:
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+      # 配置中心：路由规则集中下发，改路由不需要重启网关
+      config:
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
+        # 服务端未开启鉴权时不要配 username/password，否则注册可能被拒绝
+        shared-configs:
+          - data-id: gateway-routes.yaml
+            group: ${NACOS_GROUP:DEFAULT_GROUP}
+            refresh: true
+          - data-id: gateway-whitelist.yaml
+            group: ${NACOS_GROUP:DEFAULT_GROUP}
+            refresh: true

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  全局放行明文 HTTP。
+
+  理由与原生版 `workbench-android` 完全一致：服务地址是**运行时**由用户填写的
+  （登录页「修改服务地址」），而本文件是编译进 APK 的静态 XML——Android 不支持
+  在运行时往白名单里追加域名。只白名单 workbench.example.com 的话，用户换一台内网服务器
+  （同样是 http://）就会被系统以
+  `CLEARTEXT communication to ... not permitted by network security policy` 挡掉，
+  报错与"地址填错了"毫无关系，是内网工具最典型的坑（原生版实测踩过）。
+
+  这是自行分发的内网工具、走自有服务器 HTTP，用这点系统级防护换"能换服务器"
+  是划算的。日后后端上了 HTTPS，把 base-config 改回 false 即可。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

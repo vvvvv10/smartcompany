@@ -1,0 +1,38 @@
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+target/
+build/
+.gradle/
+*.class
+*.apk
+*.aab
+
+# ---- Android ----
+local.properties
+.kotlin/
+captures/
+*.hprof
+
+# ---- IDE / 系统 ----
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# ---- 日志与临时 ----
+*.log
+*.tmp
+
+# ---- 凭据与密钥：绝不入库 ----
+# 注意：gitignore **不支持行尾注释**，模式后面跟 # 会被并进模式、整体失效。
+# 模板是 deploy/.env.example，需要的人自己复制成 deploy/.env 填写。
+
+# 部署凭据（MySQL/Redis 口令、JWT 密钥、服务器 SSH 口令）
+.env
+# 签名密钥库：历史里那把 workbench-release.jks 应当视为已泄露，需要轮换
+*.jks
+*.keystore
+*.p12
+# 私钥
+*.pem

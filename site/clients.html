@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>客户端 · smartwork</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-head-inner">
+    <a class="site-brand" href="index.html">smartwork</a>
+    <nav class="site-nav">
+      <a href="index.html">概览</a>
+      <a href="modules.html">服务与架构</a>
+      <a href="clients.html" class="on">客户端</a>
+      <a href="deploy.html">部署与安全</a>
+      <a href="design.html">网关设计</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>客户端</h1>
+    <p class="tagline">一套后端，三个客户端：Web 管理台负责配置与审批，安卓移动端随身，iOS 端跟进中。</p>
+  </section>
+
+  <h2>对照</h2>
+  <table>
+    <tr><th></th><th>web-console</th><th>workbench-antd</th><th>workbench-ios</th></tr>
+    <tr><td>形态</td><td>React + Vite</td><td>antd-mobile 5 + Capacitor 6</td><td>React Native (Expo)</td></tr>
+    <tr><td>定位</td><td>管理台</td><td>移动工作台（定版）</td><td>iOS 工作台</td></tr>
+    <tr><td>写操作</td><td>全部</td><td>审批批准/驳回、申请提交</td><td>同安卓</td></tr>
+    <tr><td>产物</td><td>静态托管</td><td>Android APK</td><td>iOS 应用</td></tr>
+  </table>
+
+  <h2>Web 管理台</h2>
+  <p>
+    左侧菜单按权限点显隐，与后端 <code>require</code> 的权限点一一对应。
+    覆盖用户与建号、租户字典、团队与组织、角色权限矩阵、审批中心、集成配置（钉钉 / 企业微信的
+    AppKey 与 Secret 统一在该页维护，保存即热生效）。
+  </p>
+
+  <h2>移动端 workbench-antd</h2>
+  <p>固定页签：<strong>系统管理 / 通讯录 / 审批 / 我的</strong>；四个可选模块
+    <strong>TMS / WMS / OMS / CRM</strong>。</p>
+  <ul>
+    <li>页签显隐 = <strong>本机开关 ∧ 权限点</strong>，四组开关彼此独立（关掉 CRM 不该把 TMS 一起带走），
+        且只存在本机，退出登录不清除。</li>
+    <li>无权限的模块<strong>不占页签位置</strong>，「我的」里对应行显示「无权限」并可提交权限申请，
+        走与花名申请同一套两级审批，通过后页签自动出现。</li>
+    <li>审批中心是<strong>一张表、一套端点、两条审批链</strong>（申请人团队负责人 → 模块系统管理员，
+        ADMIN 可整单批），待办数一个接口算清。</li>
+  </ul>
+
+  <h3>壳层上的几个关键决定</h3>
+  <ul>
+    <li><strong>触感</strong>：<code>@capacitor/haptics</code> 按语义封装（Light / Select / Success / Error …），
+        提示与触感触绑在同一个入口，避免「有提示没震动」漏配；不支持时静默降级。</li>
+    <li><strong>状态栏</strong>：WebView 全屏化 + 状态栏透明，页头渐变一路铺进系统栏，页头吸顶。
+        状态栏高度由原生上报——Chrome 在 Android 上 <code>env(safe-area-inset-top)</code>
+        只反映屏幕挖孔、不含状态栏，直接用会让标题被时间/电量压住。</li>
+    <li><strong>错误可恢复</strong>：错误态带「重新加载」按钮；后端重启不必杀掉 App 重开。</li>
+    <li><strong>跨域</strong>：走 CapacitorHttp，网关无需为移动端单开 CORS。</li>
+  </ul>
+
+  <h3>构建</h3>
+  <pre><code>cd workbench-antd &amp;&amp; ./build.sh     # 单测 + tsc + vite + cap sync + gradle</code></pre>
+
+  <h2>iOS 端</h2>
+  <p>React Native (Expo) 实现，功能与安卓端对齐，构建见仓库里的 <code>README.ios.md</code>。</p>
+
+  <div class="note">
+    <p><strong>只读边界</strong>：业务数据的新建/删除、阶段推进、用户与权限管理只在 Web 端提供；
+      移动端只提交审批动作与权限申请，本地只写自己的配置（服务地址、模块开关）。</p>
+  </div>
+
+</main>
+
+<footer class="site-foot">
+  smartwork · <a href="index.html">返回概览</a> ·
+  <a href="https://github.com/vvvvv10/smartwork">GitHub 仓库</a>
+</footer>
+
+</body>
+</html>

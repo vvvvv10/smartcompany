@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>部署与安全 · smartwork</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-head-inner">
+    <a class="site-brand" href="index.html">smartwork</a>
+    <nav class="site-nav">
+      <a href="index.html">概览</a>
+      <a href="modules.html">服务与架构</a>
+      <a href="clients.html">客户端</a>
+      <a href="deploy.html" class="on">部署与安全</a>
+      <a href="design.html">网关设计</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>部署与安全</h1>
+    <p class="tagline">编排、迁移、构建锁，以及凭据怎么处理——这一页是运维接手时最该先看的。</p>
+  </section>
+
+  <h2>编排</h2>
+  <p>
+    <code>deploy/docker-compose.yml</code> 编排 mysql / redis / nacos 与 6 个服务，
+    镜像名固定为 <code>&lt;服务名&gt;:1.0.0</code>。中间件端口仅绑定 127.0.0.1，公网不可达。
+  </p>
+  <pre><code># 推源码 → 服务器构建 → 重建容器
+docker build -t &lt;svc&gt;:1.0.0 .
+docker compose up -d --force-recreate &lt;svc&gt;</code></pre>
+
+  <div class="note warn">
+    <p><strong>镜像 tag 不变时必须加 <code>--force-recreate</code></strong>，否则 compose 认为配置没变、
+      容器不会重建，你会对着旧镜像排查半天。</p>
+  </div>
+
+  <h3>构建锁</h3>
+  <p>
+    服务器内存有限，<strong>并发构建会雪崩</strong>。构建须持 <code>flock /var/lock/stack-build.lock</code>
+    并等负载回落；<code>deploy_serial.sh</code> 已按这个礼数串行化。
+  </p>
+
+  <h2>数据库与迁移</h2>
+  <ul>
+    <li>6 个库；<code>deploy/initdb/*.sql</code> <strong>只在 MySQL 首次初始化时自动执行</strong>
+        （<code>data/</code> 为空才跑），已有实例必须手动导入。</li>
+    <li>迁移脚本一律 <code>CREATE TABLE IF NOT EXISTS</code> + 唯一键，保证重跑幂等。</li>
+    <li>带 <code>USE user_center</code> 这类显式选库，避免「在哪个库执行」变成玄学。</li>
+  </ul>
+
+  <h2>凭据</h2>
+  <p><strong>仓库里不放任何真实凭据。</strong>需要时自己生成一份：</p>
+  <pre><code>cp deploy/.env.example deploy/.env     # .env 已被 .gitignore 排除
+git ls-files deploy/.env                # 应输出为空</code></pre>
+
+  <table>
+    <tr><th>变量</th><th>用途</th></tr>
+    <tr><td><code>MYSQL_ROOT_PASSWORD</code></td><td>中间件口令，compose 以 <code>${VAR}</code> 注入各服务</td></tr>
+    <tr><td><code>REDIS_PASSWORD</code></td><td>同上</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>令牌签名密钥，gateway 与 user-center <strong>必须一致</strong>，长度 ≥ 32 字节</td></tr>
+    <tr><td><code>DEPLOY_HOST</code> / <code>DEPLOY_USER</code> / <code>DEPLOY_PASSWORD</code></td>
+        <td>本机运维脚本连服务器用；缺 <code>DEPLOY_PASSWORD</code> 时脚本直接报错退出</td></tr>
+  </table>
+
+  <h3>三条硬规矩</h3>
+  <ol class="steps">
+    <li><strong>JWT_SECRET 泄露等于任何人可自行签发令牌</strong>——与数据库口令同级对待，
+        定期轮换，轮换即全员重新登录。</li>
+    <li><strong>签名密钥库（<code>*.jks</code> / <code>*.keystore</code> / <code>*.p12</code> / <code>*.pem</code>）
+        入库即视为泄露</strong>，必须轮换而不是删文件。</li>
+    <li><strong>凭据一旦进过 git，改代码抹不掉历史</strong>——推送过的提交任何人都能检出，
+        只能轮换。清理历史要重写提交并让所有人重新克隆，代价高，通常不做。</li>
+  </ol>
+
+  <div class="note danger">
+    <p><strong>曾入库、现已轮换的历史凭据</strong>：MySQL / Redis 口令、JWT 签名密钥、
+      服务器 root 口令、以及一份 <code>workbench-release.jks</code> 签名密钥（随原生端删除而移除，
+      但历史里仍可检出）。这些都应视为已泄露。</p>
+  </div>
+
+  <h2>本机运维工具</h2>
+  <pre><code>python deploy/ssh.py 'docker ps'                  # 远程执行
+python deploy/upload.py &lt;本地&gt; &lt;远端&gt;             # 推送文件或源码
+python deploy/tunnel.py 18080 8080                  # 端口转发到远端内网服务</code></pre>
+  <p class="lead">
+    三个脚本的凭据只从环境变量 / 本地 <code>.env</code> 取，缺 <code>DEPLOY_PASSWORD</code> 时立即退出，
+    不拿空密码去撞 ssh——那既慢又像在爆破。
+  </p>
+
+  <h2>上线前检查清单</h2>
+  <ul>
+    <li><code>JWT_SECRET</code> 走环境变量 / KMS，长度 ≥ 32 字节，没有进 Git</li>
+    <li>数据库与 Redis 口令只经环境变量注入，compose 文件里没有明文</li>
+    <li>网关前面有 LB 并由它重写 <code>X-Forwarded-For</code>；网关不信任客户端直接传的那个头</li>
+    <li>业务服务间不绕网关（东西向走 RPC 直连 + 服务鉴权），避免环路</li>
+    <li>actuator 不把 <code>gateway</code> 端点暴露到公网</li>
+    <li>新增 <code>deploy/initdb/*.sql</code> 已在已有实例上手动导入过</li>
+    <li><code>git ls-files deploy/.env</code> 输出为空</li>
+  </ul>
+
+</main>
+
+<footer class="site-foot">
+  smartwork · <a href="index.html">返回概览</a> ·
+  <a href="https://github.com/vvvvv10/smartwork">GitHub 仓库</a>
+</footer>
+
+</body>
+</html>

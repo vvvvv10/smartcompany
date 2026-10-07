@@ -1,0 +1,55 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: tms
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/tms?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 8
+      minimum-idle: 2
+      connection-timeout: 5000
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        # Nacos 2.x 客户端 gRPC 端口 = 主端口 + 1000，容器网络里必须能通
+        # 若注册失败优先检查 9848 是否可达
+
+# TMS 不做接口级角色限制：任何登录用户（网关已验签并注入身份头）都可读写。
+
+# ---------------------------------------------------------------- M2 国际域
+tms:
+  intl:
+    callback:
+      # 承运商回调（POST /api/tms/intl/callback/tracking）的 X-Internal-Token。
+      # **故意不给默认值**：漏配时端点一律拒绝（见 CarrierCallbackController.requireToken），
+      # 而不是悄悄放行一个空 token 的请求——那种事故上线时没人发现。
+      internal-token: ${TMS_CALLBACK_TOKEN:}
+    schedule:
+      # ETD/ETA 定时推进的 cron。写成配置项而不是写死在 @Scheduled 上，
+      # 是为了让评审的「30 秒内观察到效果」与「生产别每 20 秒扫一次库」不打架。
+      # 测试环境：TMS_INTL_SCHEDULE_CRON=*/20 * * * * *（Spring 6 位 cron，含秒）
+      # 生产默认：凌晨 2 点整
+      cron: ${TMS_INTL_SCHEDULE_CRON:0 0 2 * * ?}
+      # 每轮最多推进多少票。定时任务没人盯着，不限量的话一个全表扫描能吃光连接池。
+      batch-size: ${TMS_INTL_SCHEDULE_BATCH:200}
+      # 调度线程没有请求上下文，租户必须显式给（否则会落到默认租户 alibaba）。
+      tenant-id: ${TMS_SCHEDULE_TENANT:alibaba}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.tms: INFO

@@ -1,0 +1,8 @@
+app:
+  security:
+    whitelist:
+      - /api/auth/captcha
+      - /api/auth/register
+      - /api/auth/login
+      - /api/auth/refresh
+      - /actuator/health/**

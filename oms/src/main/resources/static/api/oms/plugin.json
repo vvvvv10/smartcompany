@@ -1,0 +1,14 @@
+{
+  "serviceCode": "oms",
+  "serviceName": "出口/OMS 国际物流",
+  "group": { "key": "intl-group", "label": "国际物流", "icon": "global" },
+  "menus": [
+    {
+      "path": "/intl/export-orders",
+      "label": "出口订单",
+      "permission": "oms:intl:view",
+      "metaTitle": "出口订单（国际物流）",
+      "metaSub": "出口子单与母单：组批、拼箱与跨库状态对照"
+    }
+  ]
+}

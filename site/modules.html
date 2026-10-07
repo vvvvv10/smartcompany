@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>服务与架构 · smartwork</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-head-inner">
+    <a class="site-brand" href="index.html">smartwork</a>
+    <nav class="site-nav">
+      <a href="index.html">概览</a>
+      <a href="modules.html" class="on">服务与架构</a>
+      <a href="clients.html">客户端</a>
+      <a href="deploy.html">部署与安全</a>
+      <a href="design.html">网关设计</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>服务与架构</h1>
+    <p class="tagline">6 个 Spring Boot 3 / Java 17 服务：一个网关、一个用户中心、四个业务域。
+      Spring Cloud Gateway 统一入口 + Nacos 注册与配置 + MySQL 8（6 个库）+ Redis 7。</p>
+  </section>
+
+  <h2>服务一览</h2>
+  <table>
+    <tr><th>服务</th><th>路由前缀</th><th>职责</th><th>库</th></tr>
+    <tr><td><code>gateway</code></td><td><code>/api/**</code>（公网 8080）</td>
+        <td>路由转发、令牌校验、身份与租户头注入、限流；不碰数据库</td><td>—</td></tr>
+    <tr><td><code>user-center</code></td><td><code>/api/auth/**</code>、<code>/api/users/**</code>、<code>/api/admin/**</code></td>
+        <td>注册登录、用户与租户、权限体系、审批、团队与组织、运营看板</td><td><code>user_center</code></td></tr>
+    <tr><td><code>crm</code></td><td><code>/api/crm/**</code></td>
+        <td>客户、联系人、商机、跟进记录；工作台与团队看板</td><td><code>crm</code></td></tr>
+    <tr><td><code>tms</code></td><td><code>/api/tms/**</code></td>
+        <td>运输订单、车辆、司机；成本统计与派车推荐</td><td><code>tms</code></td></tr>
+    <tr><td><code>wms</code></td><td><code>/api/wms/**</code></td>
+        <td>仓库、库存、出入库登记</td><td><code>wms</code></td></tr>
+    <tr><td><code>oms</code></td><td><code>/api/oms/**</code></td>
+        <td>款号商品、多渠道订单（含明细行）、销售统计</td><td><code>oms</code></td></tr>
+  </table>
+
+  <h2>业务服务的统一约定</h2>
+  <ul>
+    <li><strong>权限与租户在服务内做</strong>：<code>require(roles, permission)</code> 校验权限点；
+        <code>TenantFilter → TenantContext</code> 把当前租户塞进每一条 SQL 的 <code>tenant_id</code>（行级隔离）。</li>
+    <li><strong>错误体</strong>统一 <code>{code, message, traceId}</code>，缺权限点返回 403 并写明「缺少权限点: xxx」。</li>
+    <li><strong>团队负责人继承</strong>：有效权限 = 自身角色权限 ∪ 所带队子树在职成员权限并集（<code>PermissionService</code> 递归求并）。</li>
+  </ul>
+
+  <h2>令牌</h2>
+  <table>
+    <tr><th>令牌</th><th>形态</th><th>有效期</th><th>存储</th></tr>
+    <tr><td>Access Token</td><td>JWT（<code>jti</code>/<code>sub</code>/<code>roles</code>/<code>tid</code>）</td>
+        <td>15 分钟</td><td>无状态，网关本地验签</td></tr>
+    <tr><td>Refresh Token</td><td>随机串</td><td>15 天</td><td>Redis，用后即焚（rotate 先删再签）</td></tr>
+  </table>
+  <p class="lead">登出 / 改密把 <code>jti</code> 写进吊销黑名单，TTL = 令牌剩余寿命，过期自动清理。</p>
+
+  <h2>权限模型</h2>
+  <p>
+    <code>permissions</code>（权限点）→ <code>role_permissions</code>（角色）→ <code>user_roles</code>（账号）
+    三层全是数据，在管理台的授权矩阵里勾选即生效。
+    <code>ADMIN</code> 在代码里硬兜底为全部权限点，配置页把管理员勾光也锁不死自己。
+  </p>
+
+  <h3>派生权限（谁都没在矩阵里勾过）</h3>
+  <ul>
+    <li><strong>花名审批</strong>：提交申请要 <code>nickname:request</code>，批准/驳回要 <code>nickname:review</code>。
+        直接改名的 <code>PUT /api/users/me/nickname</code> 永久返回 403 <code>nickname_approval_required</code>——
+        保留接口只为让还缓存着旧 bundle 的浏览器拿到一句能操作的提示。</li>
+    <li><strong>团队负责人</strong>：权限沿 <code>teams.parent_id</code> 的整棵子树并集继承。
+        递归只在读时发生，写时由 <code>TeamService</code> 挡住四条不变量（负责人必须是成员、
+        同队仅一个负责人、只统计在职、父子不成环）。</li>
+    <li><strong><code>team:view</code></strong>：只在「该用户是某个团队负责人」时出现在
+        <code>permissionCodes</code>，且刻意不进 <code>permissions</code> 表——
+        一旦入表就会出现在授权矩阵里被勾给 USER，于是人人多个空入口。
+        它管「能不能进」，进去之后能「看见谁」由 <code>GET /api/users/me/teams</code> 单独把关。</li>
+  </ul>
+
+  <h2>多租户</h2>
+  <p>
+    <code>tenants</code> 字典（默认 <code>alibaba</code>），
+    <code>users.tenant_id</code> 进 JWT 的 <code>tid</code>；业务表统一
+    <code>tenant_id NOT NULL DEFAULT 'alibaba'</code>，
+    并按「顶层列表按租户扫 + 按 id 倒序分页」的查询模式补 <code>idx_tenant(tenant_id, id)</code>。
+  </p>
+
+  <h2>已知边界</h2>
+  <div class="note warn">
+    <p><code>team_members.is_lead</code> 目前是单层标记，未做成父子链；
+        CRM 客户/商机的「领用限制」只有设计稿（<code>workbench-antd/docs/crm-visibility-design.md</code>），
+        尚未落代码。</p>
+  </div>
+
+</main>
+
+<footer class="site-foot">
+  smartwork · <a href="index.html">返回概览</a> ·
+  <a href="https://github.com/vvvvv10/smartwork">GitHub 仓库</a>
+</footer>
+
+</body>
+</html>

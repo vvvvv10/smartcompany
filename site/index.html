@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>smartwork · 企业工作台</title>
+<meta name="description" content="Spring Cloud Gateway 统一入口 + 用户中心 + 四个业务域，配套 Web 管理台与移动端工作台。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-head-inner">
+    <a class="site-brand" href="index.html">smartwork</a>
+    <nav class="site-nav">
+      <a href="index.html" class="on">概览</a>
+      <a href="modules.html">服务与架构</a>
+      <a href="clients.html">客户端</a>
+      <a href="deploy.html">部署与安全</a>
+      <a href="design.html">网关设计</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>企业工作台</h1>
+    <p class="tagline">
+      Spring Cloud Gateway 统一入口 + 用户中心 + 四个业务域（CRM / TMS / WMS / OMS），
+      配套 Web 管理台与移动端工作台。面向 10–50 个服务的中小规模内网系统。
+    </p>
+  </section>
+
+  <h2>模块一览</h2>
+  <div class="cards">
+    <div class="card">
+      <h3><a href="modules.html">gateway</a></h3>
+      <p>路由转发、令牌校验、身份与租户头注入、限流。不碰数据库。</p>
+      <div class="meta">:8080 · /api/**</div>
+    </div>
+    <div class="card">
+      <h3><a href="modules.html">user-center</a></h3>
+      <p>注册登录、用户与租户、权限体系、审批、团队与组织、运营看板。</p>
+      <div class="meta">:8081 · /api/{auth,users,admin}/**</div>
+    </div>
+    <div class="card">
+      <h3><a href="modules.html">crm</a></h3>
+      <p>客户、联系人、商机、跟进记录；个人工作台与团队看板。</p>
+      <div class="meta">:8083 · /api/crm/**</div>
+    </div>
+    <div class="card">
+      <h3><a href="modules.html">tms / wms / oms</a></h3>
+      <p>运输订单与派车推荐、仓库库存与出入库、款号商品与多渠道订单。</p>
+      <div class="meta">:8084 / :8085 / :8086</div>
+    </div>
+    <div class="card">
+      <h3><a href="clients.html">web-console</a></h3>
+      <p>Web 管理台：用户、租户、团队、角色权限、审批、集成配置。</p>
+      <div class="meta">React + Vite</div>
+    </div>
+    <div class="card">
+      <h3><a href="clients.html">workbench-antd</a></h3>
+      <p>移动端工作台（定版客户端），带触感、吸顶页头、错误可重试。</p>
+      <div class="meta">antd-mobile + Capacitor · Android</div>
+    </div>
+  </div>
+
+  <h2>请求链路</h2>
+  <pre class="flow"><code>客户端 → 网关 AuthGlobalFilter(order=-100) → 业务服务 → MySQL / Redis</code></pre>
+  <ol class="steps">
+    <li><strong>剥离伪造</strong>：无条件下掉客户端带来的 <code>X-User-Id</code> / <code>X-Tenant-Id</code> / <code>X-User-Roles</code>。</li>
+    <li><strong>校验</strong>：白名单与 CORS 预检放行，其余必须带有效 Bearer 令牌（网关本地验签 + Redis 吊销黑名单）。</li>
+    <li><strong>注入</strong>：把校验出的身份写回同名请求头——下游<strong>只信网关写入的值</strong>。</li>
+  </ol>
+  <p class="lead">网关不做数据权限；能不能看某条数据由业务服务在自己的库里判定。</p>
+
+  <h2>快速开始</h2>
+  <h3>后端</h3>
+  <pre><code>export MYSQL_HOST=127.0.0.1 MYSQL_PASSWORD=...
+export JWT_SECRET=...        # ≥ 32 字节，gateway 与 user-center 必须一致
+
+cd user-center &amp;&amp; ./mvnw spring-boot:run     # :8081
+cd gateway     &amp;&amp; ./mvnw spring-boot:run     # :8080</code></pre>
+
+  <h3>移动端</h3>
+  <pre><code>cd workbench-antd &amp;&amp; ./build.sh
+# 单测 → tsc + vite 构建 → cap sync android → gradle assembleDebug</code></pre>
+
+  <h3>部署</h3>
+  <p class="lead">
+    镜像 tag 不变时必须 <code>docker compose up -d --force-recreate &lt;svc&gt;</code>，否则容器不会重建。
+    完整手册见仓库里的 <code>deploy/DEPLOY.md</code>。
+  </p>
+
+  <div class="note">
+    <p><strong>凭据不入库。</strong>需要时 <code>cp deploy/.env.example deploy/.env</code> 自行填写；
+    <code>.env</code> 与签名密钥库已在 <code>.gitignore</code> 中排除。</p>
+  </div>
+
+</main>
+
+<footer class="site-foot">
+  smartwork · 文档随代码维护 ·
+  <a href="https://github.com/vvvvv10/smartwork">GitHub 仓库</a>
+</footer>
+
+</body>
+</html>

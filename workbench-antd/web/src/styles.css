@@ -1,0 +1,980 @@
+/*
+ * 全局样式 —— antd 官方蓝的精细化版本。
+ *
+ * 三条原则：
+ *  1) **不改组件观感，只定变量**：antd-mobile 的主色/圆角都是它自己的 CSS 变量
+ *     （--adm-color-primary 等），需要换肤就改变量，别逐个组件写样式覆盖
+ *  2) **层级靠"深色页头 + 浅灰底 + 白卡"三层**：纯白底上所有卡片糊成一片，
+ *     这是这版之前最大的问题——页面看起来像没做完的 demo
+ *  3) **数字用 tabular-nums**：指标卡里的数字等宽，跳动时不抖
+ */
+
+:root {
+  /* 主色沿用 antd 官方 #1677ff，只把页头渐变的深色端补出来 */
+  --wb-primary: #1677ff;
+  --wb-primary-deep: #0b5ed7;
+  --wb-primary-soft: #e8f3ff;
+  --wb-gradient: linear-gradient(135deg, #0b5ed7 0%, #1677ff 58%, #3d8bff 100%);
+
+  --wb-bg: #f5f7fa;
+  --wb-card: #ffffff;
+  --wb-text: #1f2329;
+  --wb-text-2: #4e5969;
+  --wb-text-3: #86909c;
+  --wb-text-4: #a8adb8;
+  --wb-line: #f2f3f5;
+
+  /* 间距节奏：全站按 **3px 的整倍数**走，别再各页面写死 12/14/16。
+     卡片外距 12(4×3)、内距 15(5×3)、行上下 12(4×3)、行内第二行 6/9/12(2/3/4×3)。
+     好处是纵向堆起来的时候，"卡片-内容-行"之间的空隙成等差，看着才齐。 */
+  --wb-gap: 12px;
+  --wb-card-pad-y: 15px;
+  --wb-card-pad-x: 15px;
+  --wb-row-y: 12px;
+  --wb-meta-gap: 6px;
+  --wb-chip-gap: 9px;
+
+  --wb-radius: 14px;
+  --wb-radius-sm: 10px;
+  --wb-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
+  --wb-shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.03), 0 4px 14px rgba(16, 24, 40, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--wb-bg);
+  color: var(--wb-text);
+  -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial,
+    'Noto Sans CJK SC', sans-serif;
+}
+
+.app {
+  min-height: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ---------------- 页面滚动容器 ---------------- */
+
+/*
+ * 每个 Tab 一个独立滚动容器：切 Tab 不会把上一页的滚动位置带过来，
+ * 也不需要动 window.scroll（下拉刷新、弹窗都更可控）。
+ */
+.page {
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* 底部 Tab 栏高度 + 安全区 */
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  background: var(--wb-bg);
+}
+
+/* ---------------- 顶部页头（深色渐变横幅） ---------------- */
+
+.page-head {
+  /* 状态栏透明 + WebView 全屏化后，滚动时必须吸顶：
+     否则白字状态栏图标会飘到浅灰内容上看不见；吸顶后渐变始终压在系统栏后面 */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* 状态栏高度以原生量的 --wb-status-h 为准（env 在 Android 上只管挖孔），见 lib/systembars.ts */
+  padding: calc(var(--wb-status-h, env(safe-area-inset-top, 0px)) + 22px) 16px 20px;
+  background: var(--wb-gradient);
+  color: #fff;
+  /* 与浅灰内容区之间给一道很轻的阴影，让"横幅结束"这件事看得出来 */
+  box-shadow: 0 6px 16px rgba(11, 94, 215, 0.16);
+}
+
+.page-head-title {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
+}
+
+.page-head-sub {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* ---------------- 分区卡片 ---------------- */
+
+.section {
+  margin: var(--wb-gap) var(--wb-gap) 0;
+  border-radius: var(--wb-radius);
+  background: var(--wb-card);
+  box-shadow: var(--wb-shadow);
+  --adm-color-background: var(--wb-card);
+  padding: var(--wb-card-pad-y) var(--wb-card-pad-x);
+}
+
+/* 卡片进场：轻微上浮。只做一次，别让长列表滚动时抖 */
+.section {
+  animation: wb-rise 0.22s ease-out;
+}
+
+@keyframes wb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: var(--wb-chip-gap);
+}
+
+/* 标题左侧一小段主色竖条：比纯文字标题更容易扫读 */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--wb-primary);
+}
+
+.section-extra {
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+  text-align: right;
+}
+
+/* ---------------- 指标 ---------------- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--wb-meta-gap);
+}
+
+/* ---------------- 骨架屏 ---------------- */
+
+/*
+ * 灰块闪条。用透明度动画而不是位移动画：位移会让旁边内容跟着"呼吸"，
+ * 长列表里很吵；透明度只在自己内部变，视线不被打断。
+ * prefers-reduced-motion 下直接停掉（动画是锦上添花，不该是依赖）。
+ */
+.sk {
+  background: #eef1f5;
+  border-radius: 6px;
+  animation: wb-shimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes wb-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+  }
+}
+
+.stat {
+  padding: 12px 6px;
+  border-radius: var(--wb-radius-sm);
+  background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+
+.stat-value {
+  margin-top: 3px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--wb-primary);
+  font-variant-numeric: tabular-nums;
+  /* 长金额（¥125.0万）不能把卡片撑破 */
+  word-break: break-all;
+  line-height: 1.25;
+}
+
+.stat-hint {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--wb-text-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 行 ---------------- */
+
+.row {
+  padding: var(--wb-row-y) 0;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wb-text);
+  line-height: 1.4;
+}
+
+.row-meta {
+  margin-top: var(--wb-meta-gap);
+  font-size: 12.5px;
+  color: var(--wb-text-3);
+  line-height: 1.65;
+  /* 中文天然按字断行，`break-all` 是多余的，还允许在任意字符处切开——
+     实测把「…不显示该页签。」切成只剩「签。」独占一行（孤字行）。
+     换成 `anywhere` 只给超长无空格 token（权限码、URL）兜底，
+     `text-wrap: pretty` 让 Chromium 收尾行别只剩一两个字。 */
+  word-break: normal;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--wb-chip-gap);
+}
+
+.row-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wb-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--wb-chip-gap);
+  margin-top: calc(var(--wb-chip-gap) + var(--wb-meta-gap));
+}
+
+/* ---------------- 状态标签（软填充） ---------------- */
+
+/*
+ * antd-mobile 5.43 的 Tag 只有 solid/outline 两种填充，outline 在白卡上偏素。
+ * 这里自己画软填充（淡底 + 同色文字），语义色统一在这里收口。
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chip-primary {
+  background: var(--wb-primary-soft);
+  color: var(--wb-primary);
+}
+
+.chip-success {
+  background: #e8f8ef;
+  color: #12a150;
+}
+
+.chip-warning {
+  background: #fff5e6;
+  color: #d25f00;
+}
+
+.chip-danger {
+  background: #ffece8;
+  color: #d92d20;
+}
+
+.chip-default {
+  background: #f2f3f5;
+  color: var(--wb-text-2);
+}
+
+/* ---------------- 字段（详情弹窗） ---------------- */
+
+.detail {
+  padding: 18px 16px 32px;
+}
+
+.detail-head {
+  margin-bottom: 10px;
+}
+
+.detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.detail-amount {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-block-title {
+  margin: 18px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wb-text-3);
+}
+
+.field {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--wb-line);
+  font-size: 14px;
+  color: var(--wb-text);
+}
+
+.field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  width: 76px;
+  flex: none;
+  color: var(--wb-text-3);
+}
+
+.field-value {
+  flex: 1;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.field-value a {
+  color: var(--wb-primary);
+  text-decoration: none;
+}
+
+/* ---------------- 空态 ---------------- */
+
+.empty {
+  padding: 34px 16px 30px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: flex;
+  justify-content: center;
+  color: #c9cdd4;
+}
+
+.empty-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--wb-text-3);
+}
+
+.empty-hint {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--wb-text-4);
+  line-height: 1.6;
+}
+
+/* ---------------- 缺权限占位 ---------------- */
+
+.denied {
+  margin: 12px;
+  padding: 16px;
+  border-radius: var(--wb-radius);
+  background: #fff8e8;
+  box-shadow: var(--wb-shadow-soft);
+}
+
+.denied-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #8a5300;
+}
+
+.denied-text {
+  margin-top: 7px;
+  font-size: 13px;
+  color: #a06a12;
+  line-height: 1.7;
+}
+
+/* ---------------- 柱状趋势 ---------------- */
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 104px;
+  padding-top: 10px;
+}
+
+.bar {
+  flex: 1;
+  min-height: 3px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, #4d94ff 0%, #1677ff 100%);
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--wb-text-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 环形图 / 排行条（零依赖图表） ---------------- */
+
+.donut {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.donut-ring {
+  width: 108px;
+  height: 108px;
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-hole {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-total {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--wb-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.donut-total-label {
+  font-size: 11px;
+  color: var(--wb-text-4);
+}
+
+.donut-legend {
+  flex: 1;
+  min-width: 0;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12.5px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.legend-label {
+  flex: 1;
+  color: var(--wb-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-value {
+  color: var(--wb-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 0;
+  color: var(--wb-text-4);
+  font-size: 13px;
+}
+
+.donut-empty-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px dashed var(--wb-line);
+}
+
+.ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rank-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.rank-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--wb-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-no {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wb-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rank-value em {
+  margin-left: 6px;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+
+.rank-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #f2f3f5;
+  overflow: hidden;
+}
+
+.rank-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ---------------- 通知点击定位的高亮 ---------------- */
+
+/* 与原生版的琥珀底色一致（BrandAmber 10%），一眼能找到被点开的那条 */
+.row-flash {
+  animation: row-flash 4s ease-out;
+  border-radius: 10px;
+}
+
+@keyframes row-flash {
+  0%,
+  70% {
+    background: #fff7e8;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* ---------------- 状态筛选 chip（OMS 订单） ---------------- */
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 12px 4px;
+}
+
+.filter-chip {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--wb-shadow-soft);
+  color: var(--wb-text-2);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.filter-chip.on {
+  background: var(--wb-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------------- CRM 口径说明 ---------------- */
+
+.crm-note {
+  margin: 12px 12px 4px;
+  padding: 12px 14px;
+  border-radius: var(--wb-radius);
+  background: var(--wb-card);
+  box-shadow: var(--wb-shadow-soft);
+}
+
+.crm-note-text {
+  font-size: 12.5px;
+  color: var(--wb-text-2);
+  line-height: 1.7;
+}
+
+.crm-note-text b {
+  color: var(--wb-text);
+}
+
+.crm-note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--wb-line);
+  font-size: 13.5px;
+  color: var(--wb-text);
+}
+
+/* ---------------- 搜索框 ---------------- */
+
+.search-wrap {
+  padding: 8px 12px 4px;
+}
+
+.search-wrap .adm-search-bar {
+  border-radius: var(--wb-radius-sm);
+  box-shadow: var(--wb-shadow-soft);
+}
+
+/* ---------------- 申请权限 ---------------- */
+
+.apply-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.apply-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--wb-line);
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.apply-chip.on {
+  border-color: #91caff;
+  background: var(--wb-primary-soft);
+}
+
+.apply-chip.pending {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.apply-chip-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wb-text);
+}
+
+.apply-chip-code {
+  font-size: 11.5px;
+  color: var(--wb-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.apply-chip.on .apply-chip-name {
+  color: var(--wb-primary);
+}
+
+/* ---------------- 我的 ---------------- */
+
+.me-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.me-avatar {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--wb-gradient);
+  color: #fff;
+  font-size: 21px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.28);
+}
+
+.me-name {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.me-account {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--wb-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 底部 Tab 栏 ---------------- */
+
+/*
+ * antd-mobile 5.43 的 TabBar 是文档流布局（没有 fixed 属性），自己固定到底部。
+ * 往上投影一层阴影，让它和内容分层；选中项加粗，颜色走 antd 的主色变量。
+ */
+.tabbar-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(180%) blur(12px);
+  box-shadow: 0 -2px 14px rgba(16, 24, 40, 0.06);
+}
+
+.tabbar-dock .adm-tab-bar-item-active .adm-tab-bar-item-title {
+  font-weight: 600;
+}
+
+/* ---------------- 测试账号一键填入 ---------------- */
+
+.quick-fill {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--wb-line);
+}
+
+.quick-fill-label {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  margin-bottom: 10px;
+}
+
+.quick-fill-row {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-fill-chip {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #d6e6ff;
+  border-radius: 10px;
+  background: #f5f9ff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.quick-fill-chip:active {
+  background: #e8f3ff;
+}
+
+.quick-fill-account {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wb-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-fill-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--wb-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------- 登录 ---------------- */
+
+.login {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--wb-gradient);
+}
+
+.login-hero {
+  padding: calc(var(--wb-status-h, env(safe-area-inset-top, 0px)) + 68px) 24px 54px;
+  color: #fff;
+}
+
+.login-brand {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.login-sub {
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.login-card {
+  flex: 1;
+  margin-top: -34px;
+  padding: 22px 18px 28px;
+  border-radius: 20px 20px 0 0;
+  background: #fff;
+  box-shadow: 0 -6px 24px rgba(11, 94, 215, 0.14);
+}
+
+.login-foot {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--wb-line);
+  font-size: 12px;
+  color: var(--wb-text-3);
+  line-height: 1.8;
+}
+
+/* 加载遮罩要盖住整屏（含 Tab 栏），否则下拉刷新时底栏还能点 */
+.loading-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.6);
+}
+/* =============================================================================
+ * 触感配套的视觉反馈（2026-10-06「操作感觉怪怪的」那次整改）
+ *
+ * 触感解决的是「手指有没有收到回应」，视觉要解决的是「屏幕有没有回应」。
+ * 两者缺一个都会像按了个假按钮：只有震动没有形变 = 麻，只有形变没有震动 = 软。
+ * ============================================================================= */
+
+/* 关掉安卓 WebView 的点按高亮闪块：白底上突然一块青色，是「怪」的常见来源 */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 按钮按下要有可见形变。antd-mobile 自带的只调透明度（--active-opacity），
+   在高亮屏上看不出位移；补一个 60ms 的缩放，和 Light 触感同拍。 */
+.adm-button:not([disabled]):active {
+  transform: scale(0.97);
+  transition: transform 60ms ease-out;
+}
+
+/* 底部 Tab 与分段控件：切页是最高频动作，按下去得有个底色 */
+.adm-tab-bar-item:active {
+  background: var(--wb-primary-soft);
+}
+
+.adm-capsule-tabs-tab:active {
+  opacity: 0.72;
+}
+
+/* 出错占位 + 重试按钮（components/ui.tsx 的 ErrorBox）。
+   ErrorBlock 自带的插画占了很高一块，按钮再单独浮在下面会显得脱节——
+   收进同一个弹性列并压掉插画下沿的留白，视觉上是「一张失败卡」。 */
+.error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.error-box-actions {
+  margin-top: -12px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 指标卡的语义色：「禁用」这种数字不该和「总用户」一个蓝——
+   看板上一眼扫过去，红色的才是需要停一下的。 */
+.stat-danger .stat-value {
+  color: #d92d20;
+}

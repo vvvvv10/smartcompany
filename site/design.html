@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网关设计 · smartwork</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-head-inner">
+    <a class="site-brand" href="index.html">smartwork</a>
+    <nav class="site-nav">
+      <a href="index.html">概览</a>
+      <a href="modules.html">服务与架构</a>
+      <a href="clients.html">客户端</a>
+      <a href="deploy.html">部署与安全</a>
+      <a href="design.html" class="on">网关设计</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>网关设计</h1>
+    <p class="tagline">
+      网关是无状态的，可以任意水平扩容；用户状态只存在 user-center 的库和 Redis 里。
+      一旦网关开始查业务库判断「能不能访问这条订单」，它就退化成了最大的那个单体。
+    </p>
+  </section>
+
+  <h2>Filter 顺序与踩坑</h2>
+  <p>
+    对应 <code>AuthGlobalFilter</code> 的 order = <code>-100</code>，必须早于
+    <code>StripPrefix</code> 等路由级过滤器。
+  </p>
+  <div class="note warn">
+    <p><strong>最容易踩的坑</strong>：限流白名单必须匹配 <strong>原始路径</strong>
+      （如 <code>/api/auth/register</code>），而不是 <code>StripPrefix</code> 之后的
+      <code>/register</code>。配错前缀等于鉴权失效。</p>
+  </div>
+
+  <h2>Nacos 路由配置示例</h2>
+  <p class="lead">
+    在 Nacos 建 data-id 为 <code>gateway-routes.yaml</code>
+    （已在 <code>bootstrap.yml</code> 里配成 shared-config，改动可热刷新）：
+  </p>
+  <pre><code>spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-center
+          uri: lb://user-center
+          predicates:
+            - Path=/api/auth/**,/api/users/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: '#{@principalKeyResolver}'
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - StripPrefix=1</code></pre>
+  <p class="lead">
+    <code>application.yml</code> 里的 routes 只是本地兜底。生产建议把
+    <code>spring.cloud.gateway.discovery.locator.enabled</code> 关掉、走显式路由——
+    隐式路由会不小心把 actuator、内部接口一起暴露到公网。
+  </p>
+
+  <h2>刻意留下的 TODO</h2>
+  <p class="lead">这些是有意留白，不是漏做：</p>
+  <ul>
+    <li><code>AuthController.login</code> 里的风控钩子：设备指纹、异地登录、连续失败锁定。</li>
+    <li><code>UserDirectory</code> 接口需要接真实持久层（MyBatis / JPA 均可）。</li>
+    <li>注册后的 <code>UserRegisteredEvent</code> 建议接到 MQ，驱动积分、营销、风控异步消费。</li>
+  </ul>
+
+  <h2>判断权限在哪一层</h2>
+  <table>
+    <tr><th>判定</th><th>在哪一层做</th></tr>
+    <tr><td>令牌真假、是否过期、是否被吊销</td><td>网关</td></tr>
+    <tr><td>接口是否需要登录</td><td>网关白名单</td></tr>
+    <tr><td>这个用户能不能看这条数据（行级）</td><td>业务服务</td></tr>
+    <tr><td>按钮 / 菜单级权限</td><td>业务服务，依据网关注入的 <code>X-User-Roles</code></td></tr>
+    <tr><td>团队负责人的继承权限</td><td>业务服务，按 <code>X-User-Id</code> 取 <code>team_members</code>，
+        再沿 <code>teams.parent_id</code> 递归取整棵子树</td></tr>
+  </table>
+
+</main>
+
+<footer class="site-foot">
+  smartwork · <a href="index.html">返回概览</a> ·
+  <a href="https://github.com/vvvvv10/smartwork">GitHub 仓库</a>
+</footer>
+
+</body>
+</html>

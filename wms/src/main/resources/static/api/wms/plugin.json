@@ -1,0 +1,14 @@
+{
+  "serviceCode": "wms",
+  "serviceName": "仓储/WMS 国际物流",
+  "group": { "key": "intl-group", "label": "国际物流", "icon": "global" },
+  "menus": [
+    {
+      "path": "/intl/packing",
+      "label": "备货装箱",
+      "permission": "wms:intl:view",
+      "metaTitle": "备货装箱（国际物流）",
+      "metaSub": "拣货/装箱/贴标/交接、库存批次效期与在途库存"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          # 关掉自动路由：隐式路由会把内部接口一起暴露到公网
+          enabled: false
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns:
+              - https://*.example.com
+              - http://localhost:*
+            allowed-methods: [GET, POST, PUT, DELETE, OPTIONS]
+            allowed-headers: ['*']
+            allow-credentials: true
+            max-age: 3600
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 8s
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+app:
+  security:
+    whitelist:
+      - /api/auth/captcha
+      - /api/auth/register
+      - /api/auth/login
+      - /api/auth/refresh
+      - /actuator/health/**
+    trusted-headers:
+      - X-User-Id
+      - X-Tenant-Id
+      - X-User-Roles
+      - X-User-Permissions
+      - X-Internal-Token
+    jwt:
+      secret: ${JWT_SECRET:please-change-this-secret-to-at-least-32-bytes-long}
+      issuer: ${JWT_ISSUER:example-auth}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

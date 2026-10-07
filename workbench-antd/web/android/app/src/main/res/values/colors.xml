@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Capacitor 模板自带色（AppTheme 引用） -->
+    <color name="colorPrimary">#1677FF</color>
+    <color name="colorPrimaryDark">#0B5ED7</color>
+    <color name="colorAccent">#1677FF</color>
+
+    <!--
+      状态栏：深色端品牌蓝。
+      不设的话 Android 用主题默认灰，真机上会在页面顶部留一条**灰带**——
+      WebView 从状态栏下方才开始画，页头渐变的最深端 #0b5ed7 接不上，看着像没做完。
+      图标保持白色（不设 windowLightStatusBar）。
+    -->
+    <color name="wbStatusBar">#0B5ED7</color>
+
+    <!-- 底部导航条：跟页面底色一致，比系统默认黑条干净 -->
+    <color name="wbNavigationBar">#F5F7FA</color>
+</resources>

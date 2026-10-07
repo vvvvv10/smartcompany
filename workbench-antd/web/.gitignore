@@ -1,0 +1,22 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Android 构建产物（工程本身要提交，产物不提交）
+android/build/
+android/app/build/
+android/.gradle/
+android/capacitor-cordova-android-plugins/
+android/local.properties
+
+# 不提交 gradle wrapper：本仓库统一用本地 Gradle（workbench-android 也没有 wrapper），
+# 且 services.gradle.org 在这个网络环境只有 ~100B/s，wrapper 自带的 distributionUrl
+# 谁 clone 谁卡死。构建一律走 build.sh 里的 ~/gradle/gradle-8.7。
+android/gradle/
+android/gradlew
+android/gradlew.bat
+
+# 系统杂项
+.DS_Store
+*.log

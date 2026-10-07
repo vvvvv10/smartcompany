@@ -1,0 +1,45 @@
+name: Deploy docs to GitHub Pages
+
+# 站点源码在 site/（纯静态，零构建）。推送 main 时把该目录作为 Pages 制品发布。
+# 首次启用：仓库 Settings → Pages → Build and deployment → Source 选 "GitHub Actions"。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  # 手动触发：改完文案想立刻刷新时用
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一次部署；不取消进行中的那次，避免发布到一半被打断
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

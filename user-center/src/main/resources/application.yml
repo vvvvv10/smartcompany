@@ -1,0 +1,59 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-center
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/user_center?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 8
+      minimum-idle: 2
+      connection-timeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      connect-timeout: 2s
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        # Nacos 2.x 客户端 gRPC 端口 = 主端口 + 1000，容器网络里必须能通
+        # 若注册失败优先检查 9848 是否可达
+
+app:
+  dev:
+    # 把验证码直接返回给前端，方便联调/演示注册流程。
+    # 生产必须为 false，否则等于公开了短信验证码。
+    reveal-captcha: ${REVEAL_CAPTCHA:false}
+  jwt:
+    secret: ${JWT_SECRET:please-change-this-secret-to-at-least-32-bytes-long}
+    issuer: ${JWT_ISSUER:example-auth}
+  # 注册后可选加入钉钉/企业微信：企业凭证统一在管理台「集成配置」页维护
+  # （integration_settings 表，页面保存即热生效，不放环境变量）；没配 → mock 模式。
+  # 网关工作台的数据源。
+  # 路由与白名单以 Nacos 配置中心为唯一事实来源（网关也是从这里读的），
+  # 运行健康从网关内网 actuator 取；三路都由 GatewayWorkbenchService 带超时降级。
+  gateway:
+    nacos-base-url: http://${NACOS_ADDR:nacos:8848}
+    routes-data-id: gateway-routes.yaml
+    whitelist-data-id: gateway-whitelist.yaml
+    health-url: http://${GATEWAY_HEALTH_URL:api-gateway:8080/actuator/health}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.user: INFO

@@ -1,0 +1,44 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        # user-center 的 controller 已经带 /api 前缀，这里不能再 StripPrefix，
+        # 否则 /api/auth/login 会被剥成 /auth/login 导致 404
+        - id: user-center
+          uri: lb://user-center
+          predicates:
+            - Path=/api/auth/**,/api/users/**,/api/admin/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: '#{@principalKeyResolver}'
+        # crm 的 controller 与 user-center 一样自带 /api/crm 前缀，同样不能 StripPrefix
+        - id: crm
+          uri: lb://crm
+          predicates:
+            - Path=/api/crm/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                key-resolver: '#{@principalKeyResolver}'
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                key-resolver: '#{@principalKeyResolver}'
+        # 兜底路由：非 /api/** 的请求全部交给前端容器，对外只有一个入口也就没有跨域问题。
+        # order 比上面的 API 路由大，保证 /api/** 优先命中业务路由。
+        - id: web-console
+          uri: http://web-console:80
+          order: 100
+          predicates:
+            - Path=/**

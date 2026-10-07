@@ -1,0 +1,271 @@
+name: gateway-stack
+
+services:
+  mysql:
+    image: mysql:8.0.36
+    container_name: stack-mysql
+    restart: unless-stopped
+    # 小内存机器专用参数：buffer pool 压到 128M，关掉 performance_schema
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # 关键：忽略客户端握手时的字符集，一律按 utf8mb4 处理。
+      # 不加这一行，容器默认 LANG=C 时 mysql 客户端会用 latin1 连接，
+      # 用 docker exec 导入中文 SQL 就会存成双重编码（UTF-8 被当 latin1 又编一次）。
+      - --character-set-client-handshake=FALSE
+      - --default-time-zone=+08:00
+      - --innodb-buffer-pool-size=128M
+      - --performance-schema=OFF
+      - --skip-name-resolve
+      - --max-connections=200
+      - --log-bin-trust-function-creators=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:3306:3306"
+    mem_limit: 640m
+    memswap_limit: 1g
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    networks:
+      - stack
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: stack-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TZ: Asia/Shanghai
+    command: >
+      sh -c "redis-server --requirepass $$REDIS_PASSWORD
+      --maxmemory 192mb --maxmemory-policy allkeys-lru --appendonly yes"
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks:
+      - stack
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: stack-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_SERVICE_DB_PARAM: >-
+        characterEncoding=utf8&connectTimeout=2000&socketTimeout=5000&autoReconnect=true
+        &useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      NACOS_AUTH_ENABLE: "false"
+      # 1.7G 内存机器上的保守堆配置
+      JVM_XMS: 256m
+      JVM_XMX: 384m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:8848:8848"
+      - "127.0.0.1:9848:9848"
+      - "127.0.0.1:9849:9849"
+    volumes:
+      - ./logs/nacos:/home/nacos/logs
+    mem_limit: 900m
+    memswap_limit: 1200m
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - stack
+
+  user-center:
+    image: user-center:1.0.0
+    container_name: app-user-center
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER}
+      TZ: Asia/Shanghai
+      # 演示环境把验证码回给前端方便注册联调；生产必须删掉这一行
+      REVEAL_CAPTCHA: "true"
+      # 1.7G 内存机器上的保守堆配置：MaxRAMPercentage x mem_limit
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      # 业务服务不直接对外，只允许经网关访问
+      - "127.0.0.1:8081:8081"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  # CRM 服务：完整 CRM 模块（客户/联系人/商机/跟进），所有登录用户可读写。
+  # 端口只绑 127.0.0.1，必须经 8080 网关访问。
+  crm:
+    image: crm:1.0.0
+    container_name: app-crm
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8083:8083"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  # TMS 运输管理服务：运输订单/车辆/司机，所有登录用户可读写。
+  tms:
+    image: tms:1.0.0
+    container_name: app-tms
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8084:8084"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  # WMS 仓储管理服务：仓库/库存/出入库记录，所有登录用户可读写。
+  wms:
+    image: wms:1.0.0
+    container_name: app-wms
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8085:8085"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  # OMS 订单管理服务：服装商品SKU/多渠道订单/统计看板，所有登录用户可读写。
+  oms:
+    image: oms:1.0.0
+    container_name: app-oms
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8086:8086"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  api-gateway:
+    image: api-gateway:1.0.0
+    container_name: app-api-gateway
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NACOS_ADDR: nacos:8848
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER}
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    ports:
+      # 全站唯一对外暴露的端口
+      - "0.0.0.0:8080:8080"
+    mem_limit: 360m
+    memswap_limit: 640m
+    networks:
+      - stack
+
+  web-console:
+    image: web-console:1.0.0
+    container_name: app-web-console
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8082:80"
+    volumes:
+      # workbench web 静态站（workbench-antd 的 vite 产物）：页面与 /api 同源零跨域。
+      # 目录在服务器磁盘上，force-recreate 不会丢（与 APK 还原是两回事）
+      - /opt/stack/data/workbench:/usr/share/nginx/html/workbench:ro
+    mem_limit: 128m
+    networks:
+      - stack
+
+networks:
+  stack:
+    driver: bridge
+    name: gateway-stack

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <!--
+      启动页主题（SplashScreen）。状态栏/导航条色在这里定，而不是只在代码里设：
+      冷启动那一下窗口主题还没走到 Activity，先把系统条画成品牌色，避免闪一下灰。
+      windowLightStatusBar=false → 状态栏图标是白色，压在深蓝上才看得清。
+    -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="android:statusBarColor">@color/wbStatusBar</item>
+        <item name="android:navigationBarColor">@color/wbNavigationBar</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

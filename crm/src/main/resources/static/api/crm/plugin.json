@@ -1,0 +1,14 @@
+{
+  "serviceCode": "crm",
+  "serviceName": "客户/CRM 国际物流",
+  "group": { "key": "intl-group", "label": "国际物流", "icon": "global" },
+  "menus": [
+    {
+      "path": "/intl/crm",
+      "label": "客户与渠道",
+      "permission": "crm:intl:view",
+      "metaTitle": "客户与渠道（国际物流）",
+      "metaSub": "出口客户国际属性、货代渠道商与异常工单"
+    }
+  ]
+}

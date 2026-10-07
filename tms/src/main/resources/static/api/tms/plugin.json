@@ -1,0 +1,14 @@
+{
+  "serviceCode": "tms",
+  "serviceName": "运输/TMS 国际物流",
+  "group": { "key": "intl-group", "label": "国际物流", "icon": "global" },
+  "menus": [
+    {
+      "path": "/intl/shipments",
+      "label": "国际运单",
+      "permission": "tms:intl:view",
+      "metaTitle": "国际运单",
+      "metaSub": "国际运单、箱与分单、轨迹节点与出口报关"
+    }
+  ]
+}
