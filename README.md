@@ -3,7 +3,7 @@
 Spring Cloud Gateway 统一入口 + 用户中心 + 四个业务域（CRM / TMS / WMS / OMS），
 配套 Web 管理台与移动端工作台。面向 10–50 个服务的中小规模内网系统。
 
-📖 **在线文档**：<https://vvvvv10.github.io/smartwork/>（GitHub Pages，源码在 [`site/`](site/)）
+📖 **在线文档**：<https://vvvvv10.github.io/smartcompany/>（GitHub Pages，源码在 [`site/`](site/)）
 
 ---
 
@@ -98,7 +98,7 @@ cd workbench-antd/web/android && gradle :app:testDebugUnitTest
 
 | 文档 | 内容 |
 | --- | --- |
-| [在线文档站](https://vvvvv10.github.io/smartwork/) | 模块、链路、权限模型、部署、客户端 |
+| [在线文档站](https://vvvvv10.github.io/smartcompany/) | 模块、链路、权限模型、部署、客户端 |
 | [`site/design.html`](site/design.html) | 网关设计：Filter 顺序与踩坑、Nacos 路由示例、权限分层 |
 | [`README.backend.md`](README.backend.md) | 后端：服务一览、令牌、各服务功能清单、迁移 |
 | [`README.web.md`](README.web.md) | Web 管理台：页面与权限点显隐、认证流 |
@@ -140,6 +140,6 @@ cp deploy/.env.example deploy/.env    # .env 已被 .gitignore 排除
 
 ## 7. 相关链接
 
-- 接口与模块细节：在线文档站 <https://vvvvv10.github.io/smartwork/>
+- 接口与模块细节：在线文档站 <https://vvvvv10.github.io/smartcompany/>
 - CRM 客户/商机领用限制的设计稿（仅设计，未改代码）：
   [`workbench-antd/docs/crm-visibility-design.md`](workbench-antd/docs/crm-visibility-design.md)
